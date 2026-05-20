@@ -102,3 +102,37 @@ Expected output: Tricks achievable per card for a sample deal.
 - Bidding engine (separate)
 - UI integration
 - Convention cards
+
+# Need to investigate
+
+## DDS static library (libdds.a built by Bazel) doesn't embed transitive dependencies
+
+- **Root cause confirmed by consumer (dds-adapter)**: Bazel's cc_library doesn't embed transitive dependencies in static archives by design
+- **Symptom**: N-API binding compiles fine, but runtime `dlopen` fails with undefined Memory symbols
+- **Reason**: libdds.a depends on //library/src/system and other libraries, but their object files aren't embedded in the archive
+
+### Solutions evaluated:
+
+1. ❌ **C++ compilation flags** (already done): `-fexceptions -frtti -fopenmp` help but insufficient
+2. ❌ **Monolithic cc_library**: Causes Bazel to emit .lo (shared object) instead of static archive
+3. ❌ **Post-processing with ar/genrule**: Complex and doesn't work well in Bazel sandbox
+4. ✅ **N-API binding links all dependencies**: Real solution — binding should link against all transitive deps
+
+### Recommended fix:
+
+The **N-API binding in bridge-project should explicitly link**:
+- libdds.a
+- libsystem.a
+- libsolver_context.a
+- libtrans_table.a
+- libmoves.a
+- liblookup_tables.a
+- libheuristic_sorting.a
+- libconstants.a (from utility)
+- libapi_definitions.a
+
+Instead of relying on Bazel's automatic transitive linking, add these to binding.gyp's link phase.
+
+See `/bridge-project/packages/dds-adapter/CLAUDE.md` for implementation details.
+
+
