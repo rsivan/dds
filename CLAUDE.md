@@ -9,6 +9,20 @@ Bridge double-dummy solver library (perfect-information analyzer). Used by bridg
 - **Consumer**: Bridge bot sampler (Monte Carlo) calls DDS for each candidate card play
 - **Constraint**: Must run fast enough for 10k+ samples per decision
 
+## Fork Scope
+
+This is a fork of dds-bridge/dds (Apache 2.0). Upstream DDS itself is stable
+(last upstream release 2.9.0, August 2018). This fork does NOT modify the
+C++ source. Permitted changes:
+
+- Build infrastructure (Bazel config, Makefile tweaks if needed)
+- Docker image definition and publishing workflows
+- Documentation (this file, READMEs)
+
+Do NOT modify files under `library/src/`, `include/`, or other upstream paths
+without an explicit reason. Such changes create merge pain when tracking
+upstream.
+
 ## Build Setup
 
 **Current build**: Bazel (hermetic, reproducible)
@@ -102,6 +116,9 @@ Expected output: Tricks achievable per card for a sample deal.
 - Bidding engine (separate)
 - UI integration
 - Convention cards
+- Multi-language wrappers (Python, etc.) — separate adapter repos belong elsewhere
+- Bridge bot logic of any kind
+- Test corpora, PBN handling beyond what DDS itself ships
 
 # Need to investigate
 
@@ -135,4 +152,134 @@ Instead of relying on Bazel's automatic transitive linking, add these to binding
 
 See `/bridge-project/packages/dds-adapter/CLAUDE.md` for implementation details.
 
+---
 
+# Docker Image
+
+## Purpose
+
+In addition to local development on macOS, this fork publishes a Linux
+Docker image containing DDS built and installed system-wide. The image
+serves three consumers:
+
+1. **dds-adapter CI** — runs Node tests inside this image via GHA
+   `container:` directive, eliminating DDS build cost from every test run.
+2. **Local CI-parity verification** — same image runs on the M5 Mac
+   (under Docker Desktop emulation) to reproduce CI failures.
+3. **Future production deployment** — bridge-project's bot service will
+   use this image as a base layer in its multi-stage production build.
+
+The image is built FROM this repo's source. Branch/PR/release builds
+naturally produce matching images.
+
+## Image Contents
+
+- Linux base (Ubuntu LTS or `node:slim`-based — decide before writing
+  the Dockerfile; node-slim base is preferred since the only known
+  consumer is Node-based)
+- Build toolchain: gcc, build-essential, libomp-dev
+- DDS built from this repo's current checkout
+- `libdds.so` installed to `/usr/local/lib`
+- DDS headers installed to `/usr/local/include/dds`
+- `ldconfig` run so the library is discoverable
+
+The image does NOT contain:
+
+- Application code
+- Bot logic
+- The N-API adapter or any Node packages beyond what Node itself ships
+- Anything bridge-specific beyond DDS
+
+## Build Strategy
+
+**Linux x64 only.** ARM64 builds are not currently produced. Adding
+linux/arm64 later via `docker buildx` is possible but additive — do
+not switch the primary build to multi-arch without a concrete need.
+
+**The Linux build is its own thing.** The Mac development build uses
+Bazel + g++-15 and produces `libdds.a` (static). The Linux image build
+uses standard gcc and produces `libdds.so` (shared). These are
+intentionally different — the linking issues being worked through on
+the Mac side do not necessarily apply to the Linux shared-library build,
+which has historically worked cleanly with vanilla make.
+
+**Investigate before writing the Dockerfile**: which build system to
+use inside the container. Options:
+
+1. The DDS source's original Makefiles in `src/Makefiles/` (specifically
+   the Linux shared-multithreaded variant — verify exact filename in
+   the repo, do not guess from memory)
+2. Bazel (same as Mac dev build, but Linux target)
+3. CMake (if a CMakeLists.txt is available or added)
+
+The simplest path is almost certainly the original Makefile.
+Verify which Makefile filenames exist before referencing one.
+
+## Tagging Strategy
+
+Three tags per build, published to GitHub Container Registry:
+
+- `ghcr.io/<owner>/dds:<dds-version>-<short-sha>` — exact pin
+- `ghcr.io/<owner>/dds:<dds-version>` — moved deliberately to blessed build
+- `ghcr.io/<owner>/dds:latest` — moved deliberately to canonical build
+
+`latest` is NOT auto-updated on every push. It is moved explicitly
+when a build is deemed canonical.
+
+Consumers should pin to the SHA tag in CI, the version tag in production.
+
+## Build Triggers
+
+Image builds run on:
+
+- Push of tags matching `image-v*` (deliberate image release)
+- Manual `workflow_dispatch`
+- Optionally: push to main when files under `docker/` or DDS sources change
+
+The image does NOT rebuild on every commit. Most commits to this fork
+are docs/Bazel/CI changes that don't affect the published image.
+
+## File Layout (Docker-Related Additions)
+
+- `docker/Dockerfile` — the image definition
+- `docker/README.md` — image usage notes (optional)
+- `.github/workflows/docker-image.yml` — GHA workflow to build and publish
+
+These are additions to the upstream layout. Do not place Docker files
+inside `src/`, `library/`, or other upstream-managed directories.
+
+## Local Docker Use on Mac
+
+The image runs on the M5 via Docker Desktop, but:
+
+- It is linux/amd64, so runs under Rosetta/qemu emulation on ARM64
+- Performance is meaningfully worse than native macOS DDS
+- File I/O across volume mounts is slow
+- Use it for CI-parity verification, NOT for daily development
+
+Daily development on the Mac continues to use the locally-built DDS
+(Bazel + g++-15). The Docker image is a CI tool and a debugging tool,
+not a replacement for the native build.
+
+## Open Questions Before Implementation
+
+1. **Base image**: `node:24-slim` vs `ubuntu:24.04`? Lean toward
+   node-slim since the only consumer is Node-based.
+2. **Single-stage vs multi-stage Dockerfile?** Single-stage is simpler;
+   multi-stage produces a smaller image by dropping build tools. For
+   a CI image, single-stage is fine — the build tools are useful for
+   the N-API binding compilation inside the same image.
+3. **Where does `npm`/`node-gyp` live?** Almost certainly in the same
+   image, since the dds-adapter's CI needs to build its native binding
+   against the installed DDS.
+4. **Linux build flags**: Does the linking issue documented above
+   ("Need to investigate" section) also affect the Linux shared-library
+   build? Test before assuming the Mac investigation transfers.
+
+## Out of Scope for Docker Work
+
+- The Mac development build is unaffected by Docker changes.
+- The Bazel linking investigation is independent of Docker.
+- Production deployment images (the bot service) live in
+  bridge-project, not here. This image is a *base* for those, not
+  the final deliverable.
