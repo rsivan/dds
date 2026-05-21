@@ -25,8 +25,6 @@ RUN mkdir -p /build/lib /build/include && \
     cp bazel-bin/library/src/libdds.a /build/lib/ && \
     cp include/*.h include/*.hpp /build/include/ 2>/dev/null || true
 
----
-
 # Stage 2: Runtime
 FROM node:24-slim
 
