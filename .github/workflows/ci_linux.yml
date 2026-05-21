@@ -6,10 +6,12 @@ on:
     branches: [main, develop]
     paths-ignore:
       - '/.github/workflows/docker-image.yml'
+      - docker/**/*
   pull_request:
     branches: [main, develop]
     paths-ignore:
       - '/.github/workflows/docker-image.yml'
+      - docker/**/*
   workflow_dispatch: {}
 
 jobs:
