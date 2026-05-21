@@ -39,11 +39,15 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy DDS artifacts from builder
+# Copy DDS artifacts from builder.
+# Headers go to /usr/local/include (NOT a dds/ subdirectory) because
+# binding.cc uses #include "dds.h", not #include <dds/dds.h>.
 COPY --from=builder /build/lib /usr/local/lib
-COPY --from=builder /build/include /usr/local/include/dds
+COPY --from=builder /build/include/ /usr/local/include/
 
-# Make library discoverable
+# libdds is currently built as a static archive (libdds.a), so ldconfig
+# isn't strictly required — but keep it cheap and harmless in case a
+# future build produces libdds.so as well.
 RUN ldconfig
 
 WORKDIR /workspace
