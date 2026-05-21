@@ -22,9 +22,11 @@ COPY . .
 RUN bazel build --check_direct_dependencies=off //library/src:dds
 
 # Copy artifacts to a clean build directory
+# Headers: all .h and .hpp from library/src needed by binding-linux.gyp
+# Libraries: all .a files from bazel-bin needed for static linking
 RUN mkdir -p /build/lib /build/include && \
-    cp bazel-bin/library/src/libdds.a /build/lib/ && \
-    cp include/*.h include/*.hpp /build/include/ 2>/dev/null || true
+    cp library/src/*.h library/src/*.hpp /build/include/ 2>/dev/null || true && \
+    find bazel-bin/library/src -name "lib*.a" -exec cp {} /build/lib/ \;
 
 # Stage 2: Runtime
 FROM node:24-slim
@@ -40,14 +42,15 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy DDS artifacts from builder.
-# Headers go to /usr/local/include (NOT a dds/ subdirectory) because
-# binding.cc uses #include "dds.h", not #include <dds/dds.h>.
+# Headers: binding-linux.gyp expects them at /dds/library/src/
+# Libraries: all .a files needed for static linking
+RUN mkdir -p /dds/library/src
+COPY --from=builder /build/include /dds/library/src/
 COPY --from=builder /build/lib /usr/local/lib
-COPY --from=builder /build/include/ /usr/local/include/
 
-# libdds is currently built as a static archive (libdds.a), so ldconfig
-# isn't strictly required — but keep it cheap and harmless in case a
-# future build produces libdds.so as well.
+# libdds is currently built as static archives (.a files), so ldconfig
+# isn't strictly required — but keep it for completeness in case a
+# future build produces .so files as well.
 RUN ldconfig
 
 WORKDIR /workspace
