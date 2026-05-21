@@ -22,10 +22,10 @@ COPY . .
 RUN bazel build --check_direct_dependencies=off //library/src:dds
 
 # Copy artifacts to a clean build directory
-# Headers: all .h and .hpp from library/src needed by binding-linux.gyp
+# Headers: entire library/src tree (including api/ subdirectory)
 # Libraries: all .a files from bazel-bin needed for static linking
-RUN mkdir -p /build/lib /build/include && \
-    cp library/src/*.h library/src/*.hpp /build/include/ 2>/dev/null || true && \
+RUN mkdir -p /build/lib && \
+    cp -r library/src /build/include && \
     find bazel-bin/library/src -name "lib*.a" -exec cp {} /build/lib/ \;
 
 # Stage 2: Runtime
