@@ -193,7 +193,10 @@ If you're not changing the Dockerfile, use Use Case 1 instead.
 
 > **Note for Mac users**: Building locally in Docker does not work on Apple Silicon due to Bazel binary incompatibility with emulation. Use the native Bazel build instead (`CXX=/opt/homebrew/bin/g++-15 CC=/opt/homebrew/bin/gcc-15 bazel build //library/src:dds`). The Docker image is intended for CI and Linux users.
 
-The image is based on `node:24-slim` and includes DDS library, Node.js/npm, and build tools.
+The image uses a **multi-stage build** to minimize size:
+- **Builder stage** (ubuntu:24.04): Compiles DDS with Bazel, keeps build tools
+- **Runtime stage** (node:24-slim): Copies only compiled artifacts + headers, installs minimal runtime deps (libstdc++6, libgomp1)
+- **Result**: ~570 MB (reduced from ~1.5 GB), fits on GHA runners
 
 ```bash
 cd ~/GitHub/dds

@@ -174,46 +174,28 @@ naturally produce matching images.
 
 ## Image Contents
 
-- Linux base (Ubuntu LTS or `node:slim`-based — decide before writing
-  the Dockerfile; node-slim base is preferred since the only known
-  consumer is Node-based)
-- Build toolchain: gcc, build-essential, libomp-dev
-- DDS built from this repo's current checkout
-- `libdds.so` installed to `/usr/local/lib`
-- DDS headers installed to `/usr/local/include/dds`
-- `ldconfig` run so the library is discoverable
+- **Base**: `node:24-slim` (includes Node.js, npm for dds-adapter CI)
+- **Compiled artifacts**: `libdds.a` at `/usr/local/lib/`, headers at `/usr/local/include/dds/`
+- **Build tools (runtime stage only)**: libstdc++6, libgomp1 (minimal runtime deps)
+- **Result**: ~570 MB (multi-stage optimization)
 
 The image does NOT contain:
 
-- Application code
-- Bot logic
+- Build toolchain (gcc, g++, Bazel — removed in runtime stage)
+- Application code or bot logic
 - The N-API adapter or any Node packages beyond what Node itself ships
-- Anything bridge-specific beyond DDS
 
 ## Build Strategy
 
-**Linux x64 only.** ARM64 builds are not currently produced. Adding
-linux/arm64 later via `docker buildx` is possible but additive — do
-not switch the primary build to multi-arch without a concrete need.
+**Architecture**: Multi-stage Dockerfile (builder + runtime)
+- **Builder stage** (ubuntu:24.04): Full toolchain + Bazel, compiles DDS, produces libdds.a + headers
+- **Runtime stage** (node:24-slim): Copies only compiled artifacts + minimal runtime deps
+- **Benefit**: Reduces bloat from build tools, final image ~570 MB (was ~1.5 GB)
 
-**The Linux build is its own thing.** The Mac development build uses
-Bazel + g++-15 and produces `libdds.a` (static). The Linux image build
-uses standard gcc and produces `libdds.so` (shared). These are
-intentionally different — the linking issues being worked through on
-the Mac side do not necessarily apply to the Linux shared-library build,
-which has historically worked cleanly with vanilla make.
+**Linux x64 only.** ARM64 builds are not produced. On Apple Silicon Macs, use `--platform linux/amd64` to pull/run the x86_64 version (runs under emulation).
 
-**Investigate before writing the Dockerfile**: which build system to
-use inside the container. Options:
+**Build system**: Bazel (same as macOS dev build, hermetic and reproducible)
 
-1. The DDS source's original Makefiles in `src/Makefiles/` (specifically
-   the Linux shared-multithreaded variant — verify exact filename in
-   the repo, do not guess from memory)
-2. Bazel (same as Mac dev build, but Linux target)
-3. CMake (if a CMakeLists.txt is available or added)
-
-The simplest path is almost certainly the original Makefile.
-Verify which Makefile filenames exist before referencing one.
 
 ## Tagging Strategy
 
