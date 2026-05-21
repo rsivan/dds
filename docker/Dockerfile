@@ -29,11 +29,14 @@ RUN mkdir -p /build/lib /build/include && \
 # Stage 2: Runtime
 FROM node:24-slim
 
-# Install only runtime dependencies (no build tools)
+# Install runtime dependencies for DDS + N-API binding compilation
 RUN apt-get update && apt-get install -y \
-    libomp-dev \
     libstdc++6 \
     libgomp1 \
+    python3 \
+    python-is-python3 \
+    make \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy DDS artifacts from builder
