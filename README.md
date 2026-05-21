@@ -195,8 +195,9 @@ If you're not changing the Dockerfile, use Use Case 1 instead.
 
 The image uses a **multi-stage build** to minimize size:
 - **Builder stage** (ubuntu:24.04): Compiles DDS with Bazel, keeps build tools
-- **Runtime stage** (node:24-slim): Copies only compiled artifacts + headers, installs minimal runtime deps (libstdc++6, libgomp1)
-- **Result**: ~570 MB (reduced from ~1.5 GB), fits on GHA runners
+- **Runtime stage** (node:24-slim): Copies only compiled artifacts + headers, installs minimal runtime deps (libstdc++6, libgomp1) + build tools needed for N-API binding compilation (python3, make, g++)
+- **Result** (before adding tools): ~570 MB (reduced from ~1.5 GB), fits on GHA runners
+- **Result** (with tools added): ~790 MB (reduced from ~1.5 GB), fits on GHA runners
 
 ```bash
 cd ~/GitHub/dds
