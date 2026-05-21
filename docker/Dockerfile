@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     build-essential \
+    libomp-dev \
     git \
     python3 \
     wget \
