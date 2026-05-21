@@ -20,7 +20,7 @@ WORKDIR /dds
 COPY . .
 
 # Build DDS using Bazel
-RUN bazel build //library/src:dds
+RUN bazel build --check_direct_dependencies=off //library/src:dds
 
 # Install libdds.a and headers
 RUN mkdir -p /usr/local/lib /usr/local/include/dds && \
