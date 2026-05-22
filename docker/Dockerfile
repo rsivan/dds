@@ -19,13 +19,22 @@ RUN wget https://github.com/bazelbuild/bazelisk/releases/download/v1.29.0/bazeli
 WORKDIR /dds
 COPY . .
 
-# Build DDS using Bazel
-RUN bazel build --check_direct_dependencies=off //library/src:dds
+# Build DDS using Bazel - build all transitive dependencies
+RUN bazel build --check_direct_dependencies=off \
+    //library/src:dds \
+    //library/src/utility:constants \
+    //library/src/lookup_tables:lookup_tables \
+    //library/src/heuristic_sorting \
+    //library/src/trans_table \
+    //library/src/moves:moves \
+    //library/src/system \
+    //library/src/solver_context:solver_context \
+    //library/src/api:api_definitions
 
-# Install libdds.a and headers
-RUN mkdir -p /usr/local/lib /usr/local/include/dds && \
-    cp bazel-bin/library/src/libdds.a /usr/local/lib/ && \
-    cp include/*.h include/*.hpp /usr/local/include/dds/ 2>/dev/null || true && \
+# Copy all .a files from bazel-bin and headers to system directories
+RUN mkdir -p /usr/local/lib /dds/library/src && \
+    find bazel-bin/library/src -name "lib*.a" -exec cp {} /usr/local/lib/ \; && \
+    cp -r library/src /dds/ && \
     ldconfig
 
 WORKDIR /workspace
