@@ -199,6 +199,8 @@ The image uses a **multi-stage build** to minimize size:
 - **Result** (before adding tools): ~570 MB (reduced from ~1.5 GB), fits on GHA runners
 - **Result** (with tools added): ~790 MB (reduced from ~1.5 GB), fits on GHA runners
 
+> **Why all .a files?** Bazel's build system automatically links transitive dependencies when compiling within Bazel. However, when libdds.a is extracted as a standalone artifact (as happens in Docker), it contains undefined symbols that need to be resolved by transitive libraries (libconstants.a, libsystem.a, etc.). All .a files are copied to `/usr/local/lib` so dds-adapter's native binding can link against them all.
+
 ```bash
 cd ~/GitHub/dds
 docker build -f docker/Dockerfile -t dds:local .

@@ -175,9 +175,11 @@ naturally produce matching images.
 ## Image Contents
 
 - **Base**: `node:24-slim` (includes Node.js, npm for dds-adapter CI)
-- **Compiled artifacts**: `libdds.a` at `/usr/local/lib/`, headers at `/usr/local/include/dds/`
-- **Build tools (runtime stage only)**: libstdc++6, libgomp1 (minimal runtime deps)
-- **Result**: ~570 MB (multi-stage optimization)
+- **Compiled artifacts**: All `.a` files (libdds.a, libconstants.a, libsystem.a, etc.) at `/usr/local/lib/`, headers with subdirectories at `/dds/library/src/`
+- **Build tools (runtime stage only)**: libstdc++6, libgomp1 (minimal runtime deps) + python3, make, g++ (for N-API binding compilation)
+- **Result**: ~790 MB (multi-stage optimization)
+
+**Why all transitive .a files?** Bazel automatically links transitive dependencies within its build system. However, when libdds.a is extracted as a standalone artifact, it contains undefined symbols that must be resolved by linking against transitive libraries (libconstants.a, libsystem.a, libtrans_table.a, etc.). dds-adapter's binding-linux.gyp needs all these .a files available at `/usr/local/lib/` to compile and link the native binding successfully.
 
 The image does NOT contain:
 
