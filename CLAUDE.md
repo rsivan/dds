@@ -25,8 +25,14 @@ upstream.
 
 ## Build Setup
 
-**Current build**: Bazel (hermetic, reproducible)
+**Quick start** (recommended):
+```bash
+cd ~/GitHub/dds
+./build-native.sh        # Build native library (macOS)
+./build-docker.sh        # Build Docker image (Linux builds inside container)
+```
 
+**Manual build** (if needed):
 ```bash
 cd ~/GitHub/dds
 CXX=/opt/homebrew/bin/g++-15 CC=/opt/homebrew/bin/gcc-15 bazel build //library/src:dds
